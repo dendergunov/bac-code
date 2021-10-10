@@ -31,9 +31,7 @@ class OpenAPISpecAnalyzer:
         content: dict
         # Endpoint parameter properties processing
         if content.get('parameters') is not None:
-            print(content.get('parameters'))
             modified_parameters = self.__analyze_parameters(content.get('parameters'))
-            print(modified_parameters)
             content['parameters'] = modified_parameters
         # Endpoint level properties processing part
         endpoint_level_properties = []
@@ -45,15 +43,15 @@ class OpenAPISpecAnalyzer:
                                   }
         endpoint_level_properties.append(defined_verbs_property)
         content['endpoint_level_properties'] = endpoint_level_properties
+        for operation in found_operations:
+            modified_operation = self.__analyze_operation(operation, content.get(operation), content.get('parameters'))
+            content[operation] = modified_operation
         self.bola_spec[path] = content
 
     def __analyze_parameters(self, parameters):
         parameters: list
         modified_parameters = []
-        print(parameters)
         for i, parameter in enumerate(parameters):
-            print(parameter)
-            print(type(parameter))
             parameter_level_properties = self.__analyze_parameter(parameter)
             if len(parameter_level_properties):
                 parameter: dict
@@ -70,13 +68,54 @@ class OpenAPISpecAnalyzer:
         if parameter.get('type') is not None:
             if parameter['type'] == 'integer':
                 is_identifier = True
-                parameter_level_properties.append({'name': 'identifier', 'value': 'true'})
+                parameter_level_properties.append({'name': 'identifier', 'value': True})
         if is_identifier:
             parameter_level_properties.append({'name': 'parameter location', 'value': parameter['in']})
             parameter_level_properties.append({'name': 'parameter type', 'value': parameter['type']})
         return parameter_level_properties
 
-    # def __analyze_operation(self, operation, content):
+    def __analyze_operation(self, operation, content, endpoint_parameters=None):
+        method_level_properties = []
+        # Operation parameters
+        operation_parameters_defined = 'non-empty' if content.get('parameters') is not None else 'empty'
+        method_level_properties.append({'name': 'operation parameters list',
+                                        'value': operation_parameters_defined})
+        # Annotate operation parameters (do it first may be)
+        if content.get('parameters') is not None:
+            modified_parameters = self.__analyze_parameters(content.get('parameters'))
+            content['parameters'] = modified_parameters
+        # Number of identifiers targeted/affected
+        # Make a check for endpoint + operation parameters which one are identifiers
+        operation_identifiers_count = 0
+        # ToDo: rewrite it to more Python style
+        if endpoint_parameters is not None:
+            for parameter in endpoint_parameters:
+                properties = parameter.get('parameter_level_properties')
+                if properties is not None:
+                    for parameter_property in properties:
+                        if parameter_property['name'] == 'identifier' and parameter_property['value'] is True:
+                            operation_identifiers_count += 1
+        if content.get('parameters') is not None:
+            for parameter in content.get('parameters'):
+                properties = parameter.get('parameter_level_properties')
+                if properties is not None:
+                    for parameter_property in properties:
+                        if parameter_property['name'] == 'identifier' and parameter_property['value'] is True:
+                            operation_identifiers_count += 1
+        method_level_properties.append({'name': 'identifiers used in operation',
+                                        'value': {0: 'zero',
+                                                  1: 'single'}.get(operation_identifiers_count, 'multiple')})
+        # ToDo: prototype pollution check
+        # Authorization required check. No propagation of security field
+        # from endpoint or specification level implemented
+        content: dict
+        authorization_required = False
+        if content.get('security') is not None:
+            authorization_required = True if len(content.get('security')) > 0 else False
+        method_level_properties.append({'name': 'authorization required',
+                                        'value': authorization_required})
+        content['method_level_properties'] = method_level_properties
+        return content
 
     def save_spec(self, savepath):
         with open(savepath, 'w') as file:
