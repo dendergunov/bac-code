@@ -13,6 +13,9 @@ class OpenAPISpecAnnotator:
         }
 
     def parse_spec(self, filename):
+        """Public method to invoke OpenAPI 3.0 specification processing to annotate with BOLA/IDOR properties.
+        Use save_spec(savepath) to save processed specification
+        """
         try:
             f = open(filename, 'r')
         except OSError:
