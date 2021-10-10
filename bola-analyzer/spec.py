@@ -5,6 +5,12 @@ class OpenAPISpecAnalyzer:
     def __init__(self):
         self.spec = None
         self.bola_spec = None
+        # Set of operations OpenAPI 3.0 specifications supports (HTTP 1.1 specifies 'connect' method)
+        self.operations = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']
+        self.defined_verbs_property_options = {
+            1: 'Single',
+            len(self.operations): 'All',
+        }
 
     def parse_spec(self, filename):
         try:
@@ -20,13 +26,25 @@ class OpenAPISpecAnalyzer:
                 print("Endpoint found:", key)
                 self.__parse_endpoint(key, value)
 
+    # ToDo: rename content to description or any better synonym
     def __parse_endpoint(self, path, content):
         content: dict
+        # Endpoint parameter properties processing
         if content.get('parameters') is not None:
             print(content.get('parameters'))
             modified_parameters = self.__analyze_parameters(content.get('parameters'))
             print(modified_parameters)
             content['parameters'] = modified_parameters
+        # Endpoint level properties processing part
+        endpoint_level_properties = []
+        # Defined HTTP verbs property
+        found_operations = [operation for operation in self.operations if content.get(operation)]
+        defined_verbs_property = {'name': 'defined_http_verbs',
+                                  'value': self.defined_verbs_property_options.get(len(found_operations),
+                                                                                   'Multiple')
+                                  }
+        endpoint_level_properties.append(defined_verbs_property)
+        content['endpoint_level_properties'] = endpoint_level_properties
         self.bola_spec[path] = content
 
     def __analyze_parameters(self, parameters):
@@ -57,6 +75,8 @@ class OpenAPISpecAnalyzer:
             parameter_level_properties.append({'name': 'parameter location', 'value': parameter['in']})
             parameter_level_properties.append({'name': 'parameter type', 'value': parameter['type']})
         return parameter_level_properties
+
+    # def __analyze_operation(self, operation, content):
 
     def save_spec(self, savepath):
         with open(savepath, 'w') as file:
