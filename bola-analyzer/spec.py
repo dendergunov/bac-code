@@ -60,4 +60,4 @@ class OpenAPISpecAnalyzer:
 
     def save_spec(self, savepath):
         with open(savepath, 'w') as file:
-            yaml.safe_dump(self.bola_spec, file)
+            yaml.safe_dump(self.bola_spec, file, sort_keys=False)
