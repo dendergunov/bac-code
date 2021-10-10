@@ -1,7 +1,7 @@
 import yaml
 
 
-class OpenAPISpecAnalyzer:
+class OpenAPISpecAnnotator:
     def __init__(self):
         self.spec = None
         self.bola_spec = None

@@ -1,4 +1,4 @@
-import spec
+import annotator
 import argparse
 import os
 
@@ -13,7 +13,7 @@ def main():
     filepath = os.path.join(os.getcwd(), args.spec_file)
     if os.path.isfile(filepath) is not True:
         raise FileNotFoundError("Specified input file does not exist")
-    analyzer = spec.OpenAPISpecAnalyzer()
+    analyzer = annotator.OpenAPISpecAnnotator()
     analyzer.parse_spec(filepath)
 
     if args.savepath is None:
