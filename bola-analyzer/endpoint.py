@@ -176,13 +176,3 @@ class EndpointAttackAnalyzer:
                             attack['variations'] = deepcopy(variations)
                             attack['target_parameter'] = deepcopy(parameter)
                             self.attack_spec.append(attack)
-
-    # def __enumeration_black_box(self, path, content, operation, parameter):
-    #     """Check for verb tampering attack: operation uses parameters from other operation
-    #             path - endpoint's path (OpenAPI PATH object)
-    #             content - endpoint's content
-    #             operation - operation's name"""
-    #     print("")
-    #
-    # def __enumeration_gray_box(self, path, content, operation):
-    #     print("")
