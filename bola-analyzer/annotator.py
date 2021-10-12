@@ -1,6 +1,7 @@
 import yaml
 
 
+# ToDo: Move property names to distinct namespace and use internal constant corresponding ids instead
 class OpenAPISpecAnnotator:
     def __init__(self):
         self.spec = None
