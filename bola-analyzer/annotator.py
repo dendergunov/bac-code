@@ -25,101 +25,116 @@ class OpenAPISpecAnnotator:
         self.spec = yaml.load(f, Loader=yaml.SafeLoader)
         self.bola_spec = self.spec.copy()
 
-        for key, value in self.spec.items():
-            if key.startswith('/'):
-                print("Endpoint found:", key)
-                self.__parse_endpoint(key, value)
+        if self.spec.get('paths') is not None:
+            print("Paths OpenAPI object found!")
+            for path, path_schema in self.spec.get('paths').items():
+                if path.startswith('/'):
+                    print("Endpoint found:", path)
+                    self.__parse_endpoint(path, path_schema)
 
-    # ToDo: rename content to description or any better synonym
-    def __parse_endpoint(self, path, content):
-        content: dict
+    def __parse_endpoint(self, path, path_schema):
+        path_schema: dict
         # Endpoint parameter properties processing
-        if content.get('parameters') is not None:
-            modified_parameters = self.__analyze_parameters(content.get('parameters'))
-            content['parameters'] = modified_parameters
-        # Endpoint level properties processing part
-        endpoint_level_properties = []
-        # Defined HTTP verbs property
-        found_operations = [operation for operation in self.operations if content.get(operation)]
-        defined_verbs_property = {'name': 'defined_http_verbs',
-                                  'value': self.defined_verbs_property_options.get(len(found_operations),
-                                                                                   'Multiple')
-                                  }
-        endpoint_level_properties.append(defined_verbs_property)
-        content['endpoint_level_properties'] = endpoint_level_properties
-        for operation in found_operations:
-            modified_operation = self.__analyze_operation(operation, content.get(operation), content.get('parameters'))
-            content[operation] = modified_operation
-        self.bola_spec[path] = content
+        if path_schema.get('parameters') is not None:
+            modified_parameters = self.__analyze_parameters(path_schema.get('parameters'))
+            path_schema['parameters'] = modified_parameters
 
-    def __analyze_parameters(self, parameters):
-        parameters: list
+        found_operations = [operation for operation in self.operations if path_schema.get(operation)]
+        # Method level parameter complement
+        for operation in found_operations:
+            modified_operation = self.__analyze_operation(operation, path_schema.get(operation),
+                                                          path_schema.get('parameters'))
+            path_schema[operation] = modified_operation
+
+        # Endpoint level properties complement
+        # Defined HTTP verbs property
+        endpoint_level_properties = {
+            'defined_http_verbs': self.defined_verbs_property_options.get(len(found_operations),
+                                                                          'Multiple')}
+
+        path_schema['endpoint_level_properties'] = endpoint_level_properties
+        self.bola_spec['paths'][path] = path_schema
+
+    def __analyze_parameters(self, parameters_list):
+        """Private method is invoked with a list of parameters (described at endpoint or method level) passed
+        to iteratively complement properties of every parameter in the list"""
+        parameters_list: list
         modified_parameters = []
-        for i, parameter in enumerate(parameters):
-            parameter_level_properties = self.__analyze_parameter(parameter)
+        for i, parameter_schema in enumerate(parameters_list):
+            parameter_level_properties = self.__analyze_parameter(parameter_schema)
             if len(parameter_level_properties):
-                parameter: dict
-                parameter['parameter_level_properties'] = parameter_level_properties
-            modified_parameters.append(parameter)
+                parameter_schema: dict
+                parameter_schema['parameter_level_properties'] = parameter_level_properties
+            modified_parameters.append(parameter_schema)
         return modified_parameters
 
-    def __analyze_parameter(self, parameter):
-        """Currently parameter_level_properties is a list but should changed to dictionary
-        for better visibility and working with its attributes, e.g. is identifier"""
-        parameter_level_properties = []
-        is_identifier = None
-        parameter: dict
-        if parameter.get('type') is not None:
-            if parameter['type'] == 'integer':
-                is_identifier = True
-                parameter_level_properties.append({'name': 'identifier', 'value': True})
+    def __analyze_parameter(self, parameter_schema):
+        """Private method is invoked with a parameter schema passed. Returns a copy of the parameter schemas passed
+        with parameter_level_properties dictionary inserted with the 'parameter_level_properties' key"""
+        # ToDo: add reference resolving
+        parameter_level_properties = {}
+        is_identifier = False
+        parameter_type = None
+        parameter_schema: dict
+        schema_field = parameter_schema.get('schema')
+        if schema_field is not None:
+            if schema_field.get('type') is not None:
+                # Add more checks on parameter being an identifier
+                if schema_field['type'] == 'integer':
+                    parameter_type = 'integer'
+                if schema_field['type'] == 'array':
+                    parameter_type = 'array'
+                    if schema_field.get('items').get('type') == 'integer':
+                        is_identifier = True
+                if parameter_schema['name'].lower() == "id" or parameter_schema['name'].lower().endswith("_id") \
+                        or parameter_schema['name'].endswith("Id") or parameter_schema['name'].endswith("ID"):
+                    is_identifier = True
+                if parameter_schema['name'].lower() == "uuid" or parameter_schema['name'].lower().endswith("uuid"):
+                    is_identifier = True
+                    parameter_type = 'UUID'
+                # ToDo: add checks for personal information type
+                # ToDo: add parsing of complex objects
+        parameter_level_properties['is_identifier'] = is_identifier
         if is_identifier:
-            parameter_level_properties.append({'name': 'parameter location', 'value': parameter['in']})
-            parameter_level_properties.append({'name': 'parameter type', 'value': parameter['type']})
+            parameter_level_properties['location'] = parameter_schema['in']
+            parameter_level_properties['type'] = parameter_type if parameter_type is not None else schema_field['type']
         return parameter_level_properties
 
-    def __analyze_operation(self, operation, content, endpoint_parameters=None):
-        method_level_properties = []
+    def __analyze_operation(self, operation, operation_schema, endpoint_parameters=None):
+        # ToDo: change method_level_properties from list to dictionary type
+        method_level_properties = {}
         # Operation parameters
-        operation_parameters_defined = 'non-empty' if content.get('parameters') is not None else 'empty'
-        method_level_properties.append({'name': 'operation parameters list',
-                                        'value': operation_parameters_defined})
+        operation_parameters_defined = 'non-empty' if operation_schema.get('parameters') is not None else 'empty'
+        method_level_properties['operation_parameters_list'] = operation_parameters_defined
         # Annotate operation parameters (do it first may be)
-        if content.get('parameters') is not None:
-            modified_parameters = self.__analyze_parameters(content.get('parameters'))
-            content['parameters'] = modified_parameters
-        # Number of identifiers targeted/affected
+        if operation_schema.get('parameters') is not None:
+            modified_parameters = self.__analyze_parameters(operation_schema.get('parameters'))
+            operation_schema['parameters'] = modified_parameters
+        # Number of identifiers targeted/affected property:
         # Make a check for endpoint + operation parameters which one are identifiers
         operation_identifiers_count = 0
-        # ToDo: rewrite it to more Python style
         if endpoint_parameters is not None:
             for parameter in endpoint_parameters:
+                # Every parameter has 'parameter_level_properties' field to this moment
                 properties = parameter.get('parameter_level_properties')
-                if properties is not None:
-                    for parameter_property in properties:
-                        if parameter_property['name'] == 'identifier' and parameter_property['value'] is True:
-                            operation_identifiers_count += 1
-        if content.get('parameters') is not None:
-            for parameter in content.get('parameters'):
+                if properties['is_identifier']:
+                    operation_identifiers_count += 1
+        if operation_schema.get('parameters') is not None:
+            for parameter in operation_schema.get('parameters'):
                 properties = parameter.get('parameter_level_properties')
-                if properties is not None:
-                    for parameter_property in properties:
-                        if parameter_property['name'] == 'identifier' and parameter_property['value'] is True:
-                            operation_identifiers_count += 1
-        method_level_properties.append({'name': 'identifiers used in operation',
-                                        'value': {0: 'zero',
-                                                  1: 'single'}.get(operation_identifiers_count, 'multiple')})
-        # ToDo: prototype pollution check
-        # Authorization required check. No propagation of security field
-        # from endpoint or specification level implemented
-        content: dict
+                if properties['is_identifier']:
+                    operation_identifiers_count += 1
+        method_level_properties['identifiers_used'] = {0: 'zero',
+                                                       1: 'single'}.get(operation_identifiers_count, 'multiple')
+        # Authorization required check.
+        # ToDo: implement propagation of security fields from endpoint and specification level
+        operation_schema: dict
         authorization_required = False
-        if content.get('security') is not None:
-            authorization_required = True if len(content.get('security')) > 0 else False
-        method_level_properties.append({'name': 'authorization required',
-                                        'value': authorization_required})
-        content['method_level_properties'] = method_level_properties
-        return content
+        if operation_schema.get('security') is not None:
+            authorization_required = True if len(operation_schema.get('security')) > 0 else False
+        method_level_properties['authorization_required'] = authorization_required
+        operation_schema['method_level_properties'] = method_level_properties
+        return operation_schema
 
     def save_spec(self, savepath):
         with open(savepath, 'w') as file:
