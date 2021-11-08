@@ -4,6 +4,7 @@ import os
 import annotator
 import attack_analyzer
 
+import time
 
 def main():
     parser = argparse.ArgumentParser(description='''OpenAPI specification analyzer and processor that annotates the 
@@ -17,6 +18,8 @@ def main():
     filepath = os.path.join(os.getcwd(), args.spec_file)
     if os.path.isfile(filepath) is not True:
         raise FileNotFoundError("Specified input file does not exist")
+
+    start = time.time()
     property_analyzer = annotator.OpenAPISpecAnnotator()
     property_analyzer.parse_spec(filepath)
     property_analyzer.save_spec(args.properties_savepath)
@@ -24,7 +27,8 @@ def main():
     attack_analyzer_instance = attack_analyzer.AttackAnalyzer()
     attack_analyzer_instance.estimate_attacks(args.properties_savepath)
     attack_analyzer_instance.save_output(args.attacks_savepath)
-
+    end = time.time()
+    print("Done in", end-start, "seconds")
 
 if __name__ == "__main__":
     main()
