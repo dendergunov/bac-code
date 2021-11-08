@@ -5,14 +5,12 @@ import endpoint
 
 
 # ToDo: Move attack names to distinct namespace and use internal constant corresponding ids instead
-# Proposition:
-#   Move part of functionality to endpoint analyzer because almost every function uses path argument to pass
-#   When it is better to instantiate an object of class Endpoint Analyzer and uses its internal attributes and return
-#   Endpoint's attacks file
 class AttackAnalyzer:
     def __init__(self):
         self.bola_spec = dict()
         self.attack_spec = dict()
+        self.paths_processed = 0
+        self.attacks_proposed = 0
 
     def estimate_attacks(self, filename):
         """Public method to process OpenAPI 3.0 specification annotated with BOLA/IDOR properties.
@@ -25,12 +23,26 @@ class AttackAnalyzer:
             exit(2)
         self.bola_spec = yaml.load(f, Loader=yaml.SafeLoader)
 
-        for key, value in self.bola_spec.items():
-            if key.startswith('/'):
-                endpoint_analyzer = endpoint.EndpointAttackAnalyzer(key, value)
-                endpoint_analyzer.parse_endpoint()
-                if len(endpoint_analyzer.attack_spec):
-                    self.attack_spec[key] = {'attacks': deepcopy(endpoint_analyzer.attack_spec)}
+        if self.bola_spec.get('paths') is not None:
+            print("Paths OpenAPI object found!")
+            for path, path_schema in self.bola_spec['paths'].items():
+                if path.startswith('/'):
+                    endpoint_analyzer = endpoint.EndpointAttackAnalyzer(path, path_schema)
+                    endpoint_analyzer.parse_endpoint()
+                    if len(endpoint_analyzer.attack_spec):
+                        self.attack_spec[path] = {'count': len(endpoint_analyzer.attack_spec),
+                                                  'attacks': deepcopy(endpoint_analyzer.attack_spec)}
+                        self.attacks_proposed += self.attack_spec[path]['count']
+                    print("Endpoint found:", path)
+                    if self.attack_spec.get(path) is not None:
+                        print("Attacks proposed for that endpoint:", self.attack_spec[path]['count'])
+                    else:
+                        print("Attacks proposed for that endpoint:", 0)
+                    self.paths_processed += 1
+        print("Total paths processed:", self.paths_processed)
+        print("Total attacks proposed:", self.attacks_proposed)
+        self.attack_spec['total_paths'] = self.paths_processed
+        self.attack_spec['attack_proposed'] = self.attacks_proposed
 
     def save_output(self, savepath):
         with open(savepath, 'w') as file:
