@@ -2,6 +2,7 @@ import yaml
 
 
 # ToDo: Move property names to distinct namespace and use internal constant corresponding ids instead
+# ToDo: Add parsers for requestBody, components and schema objects
 class OpenAPISpecAnnotator:
     def __init__(self):
         self.spec = None
@@ -89,7 +90,7 @@ class OpenAPISpecAnnotator:
         schema_field = parameter_schema.get('schema')
         if schema_field is not None:
             if schema_field.get('type') is not None:
-                # Add more checks on parameter being an identifier
+                # ToDo: Add more checks on parameter being an identifier
                 if schema_field['type'] == 'integer':
                     parameter_type = 'integer'
                 if schema_field['type'] == 'array':
@@ -103,9 +104,10 @@ class OpenAPISpecAnnotator:
                     is_identifier = True
                     parameter_type = 'UUID'
                 # ToDo: add checks for personal information type
-                # ToDo: add parsing of complex objects
+            # ToDo: add parsing of complex objects
         parameter_level_properties['is_identifier'] = is_identifier
 
+        # ToDo: Add check for $ref schema
         if is_identifier:
             parameter_level_properties['location'] = parameter_schema['in']
             parameter_level_properties['type'] = parameter_type if parameter_type is not None else schema_field['type']
@@ -114,8 +116,13 @@ class OpenAPISpecAnnotator:
     def __analyze_operation(self, operation, operation_schema, endpoint_parameters=None, endpoint_authorization=False):
         method_level_properties = {}
         # Operation parameters
-        operation_parameters_defined = 'non-empty' if operation_schema.get('parameters') is not None else 'empty'
-        method_level_properties['operation_parameters_list'] = operation_parameters_defined
+        operation_parameters_defined = True if operation_schema.get('parameters') is not None else False
+        method_level_properties['operation_only_parameters_specified'] = operation_parameters_defined
+
+        # Operation uses parameters
+        method_level_properties['parameters_required'] = False if endpoint_parameters is None else True
+        if operation_schema.get('parameters') is not None:
+            method_level_properties['parameters_required'] = True
 
         # Annotate operation parameters (do it first may be)
         if operation_schema.get('parameters') is not None:
