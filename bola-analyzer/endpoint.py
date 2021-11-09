@@ -156,10 +156,6 @@ class EndpointAttackAnalyzer:
         """Check for verb tampering attack: operation uses parameters from other operation
                 path - endpoint's path (OpenAPI PATH object)
                 content - endpoint's content"""
-        # Check each operation
-        # if operation uses authorization
-        # for each parameter identifier (endpoint_level + operation_level)
-        # decide black box or gray box
         endpoint_parameters = self.path_schema.get('parameters', [])
         defined_operations = [operation for operation in operations if self.path_schema.get(operation) is not None]
         for operation in defined_operations:
