@@ -124,6 +124,9 @@ class OpenAPISpecAnnotator:
         if operation_schema.get('parameters') is not None:
             method_level_properties['parameters_required'] = True
 
+        # Operation has body
+        method_level_properties['has_body'] = True if operation_schema.get('requestBody') is not None else False
+
         # Annotate operation parameters (do it first may be)
         if operation_schema.get('parameters') is not None:
             modified_parameters = self.__analyze_parameters(operation_schema.get('parameters'))
