@@ -43,6 +43,7 @@ class AttackAnalyzer:
         print("Total attacks proposed:", self.attacks_proposed)
         self.attack_spec['total_paths'] = self.paths_processed
         self.attack_spec['attack_proposed'] = self.attacks_proposed
+        f.close()
 
     def save_output(self, savepath):
         with open(savepath, 'w') as file:

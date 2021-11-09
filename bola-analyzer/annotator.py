@@ -39,6 +39,7 @@ class OpenAPISpecAnnotator:
                     self.__parse_endpoint(path, path_schema)
                     self.paths_found += 1
         print("Total paths processed:", self.paths_found)
+        f.close()
 
     def __parse_endpoint(self, path, path_schema):
         path_schema: dict
@@ -161,3 +162,4 @@ class OpenAPISpecAnnotator:
     def save_spec(self, savepath):
         with open(savepath, 'w') as file:
             yaml.safe_dump(self.bola_spec, file, sort_keys=False)
+        file.close()
