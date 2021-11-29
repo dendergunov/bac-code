@@ -1,0 +1,49 @@
+/vaults/{vaultUuid}/items:
+  count: 1
+  attacks:
+  - name: Adding parameters and body used in another HTTP Methods
+    check_rule: 'Defined HTTP endpoints property''s value IS NOT single AND Operations
+      require parameters AND (operation-specific parameter lists are not same AND
+      request bodies are not same) AND one of operations (require parameters OR has
+      body) '
+    description: 'Authorization may be performed for a concrete verb and its parameters
+      but service logic ignores requests verb '
+    examples: []
+    sink_operation: get
+    source_operations:
+    - post
+    expected_response:
+      '400': Bad Request
+    unexpected_response_codes:
+    - '200'
+    - '401'
+    - '404'
+  - name: Adding parameters and body used in another HTTP Methods
+    check_rule: 'Defined HTTP endpoints property''s value IS NOT single AND Operations
+      require parameters AND (operation-specific parameter lists are not same AND
+      request bodies are not same) AND one of operations (require parameters OR has
+      body) '
+    description: 'Authorization may be performed for a concrete verb and its parameters
+      but service logic ignores requests verb '
+    examples: []
+    sink_operation: post
+    source_operations:
+    - get
+    expected_response:
+      content:
+        application/json:
+          example:
+            message: Invalid item category
+            status: 400
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+      description: Unable to create item due to invalid input
+    unexpected_response_codes:
+    - '200'
+    - '401'
+    - '403'
+    - '404'
+attacked_paths: 1
+not_attacked_paths: 0
+total_paths: 1
+attacks_proposed: 1

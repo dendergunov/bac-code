@@ -1,0 +1,37 @@
+/accountHolders/{ID}:
+  count: 3
+  attacks:
+  - name: Enumeration
+    check_rule: Operation uses parameters AND operation has parameters identifiers
+    description: 'Identifier is tampered for enumeration based on automatically or
+      semi-automatically determined pattern. In the simplest form, identifier is sequential
+      and enumeration leads to targeting existing object with identifier being unknown
+      at the start '
+    examples: []
+    target_operation: get
+    targeted_parameters:
+      id:
+        attacks:
+        - Enumeration with a priori knowledge
+        - File extension decoration
+        - Wildcard replacement
+        additional_check_rule: Authorization is requiredAuthorization is required
+          AND identifier's type is string
+    expected_response:
+      content:
+        application/json:
+          examples:
+            generic:
+              $ref: '#/components/examples/generic-403'
+          schema:
+            $ref: '#/components/schemas/RestServiceError'
+      description: Forbidden - insufficient permissions to process the request.
+    unexpected_response_codes:
+    - '200'
+    - '401'
+    - '422'
+    - '500'
+attacked_paths: 1
+not_attacked_paths: 0
+total_paths: 1
+attacks_proposed: 3

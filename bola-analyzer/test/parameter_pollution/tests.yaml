@@ -1,0 +1,52 @@
+/account/{accountID}/exchangeData:
+  count: 1
+  attacks:
+  - name: Parameter pollution
+    check_rule: 'Operation uses authorization AND Operation requires parameters AND
+      operation requires two parameters with same names in different places '
+    description: 'Information in one request is processed and sent into different
+      processing units of server. Tampering with one of parameter''s value is a way
+      to check that authorization is consistent and there''s no case that value from
+      one location is used for authorization and value from another is used to access
+      an object '
+    examples: []
+    target_operation: post
+    target_parameters:
+    - description: Unique identifier of the account holder.
+      in: path
+      name: accountID
+      required: true
+      schema:
+        type: string
+      parameter_level_properties:
+        is_identifier: true
+        location: path
+        type: string
+    - description: Unique identifier of the account sender
+      in: query
+      name: accountID
+      required: true
+      schema:
+        type: string
+      parameter_level_properties:
+        is_identifier: true
+        location: query
+        type: string
+    expected_response:
+      content:
+        application/json:
+          examples:
+            generic:
+              $ref: '#/components/examples/generic-422'
+          schema:
+            $ref: '#/components/schemas/RestServiceError'
+      description: Unprocessable Entity - a request validation error.
+    unexpected_response_codes:
+    - '200'
+    - '401'
+    - '403'
+    - '500'
+attacked_paths: 1
+not_attacked_paths: 0
+total_paths: 1
+attacks_proposed: 1

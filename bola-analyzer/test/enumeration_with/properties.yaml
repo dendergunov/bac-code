@@ -1,0 +1,85 @@
+openapi: 3.0.1
+security:
+- basicAuth: []
+- bearerAuth: []
+paths:
+  /accountHolders/{UUID}:
+    get:
+      description: Returns a specific account holder.
+      parameters:
+      - description: Unique identifier of the account holder.
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        parameter_level_properties:
+          is_identifier: true
+          location: path
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHolder'
+          description: OK - the request has succeeded.
+        '400':
+          content:
+            application/json:
+              examples:
+                generic:
+                  $ref: '#/components/examples/generic-400'
+              schema:
+                $ref: '#/components/schemas/RestServiceError'
+          description: Bad Request - a problem reading or understanding the request.
+        '401':
+          content:
+            application/json:
+              examples:
+                generic:
+                  $ref: '#/components/examples/generic-401'
+              schema:
+                $ref: '#/components/schemas/RestServiceError'
+          description: Unauthorized - authentication required.
+        '403':
+          content:
+            application/json:
+              examples:
+                generic:
+                  $ref: '#/components/examples/generic-403'
+              schema:
+                $ref: '#/components/schemas/RestServiceError'
+          description: Forbidden - insufficient permissions to process the request.
+        '422':
+          content:
+            application/json:
+              examples:
+                generic:
+                  $ref: '#/components/examples/generic-422'
+              schema:
+                $ref: '#/components/schemas/RestServiceError'
+          description: Unprocessable Entity - a request validation error.
+        '500':
+          content:
+            application/json:
+              examples:
+                generic:
+                  $ref: '#/components/examples/generic-500'
+              schema:
+                $ref: '#/components/schemas/RestServiceError'
+          description: Internal Server Error - the server could not process the request.
+      security:
+      - BasicAuth: []
+      - ApiKeyAuth: []
+      summary: Retrieve an account holder.
+      tags:
+      - Account holders
+      method_level_properties:
+        operation_only_parameters_specified: true
+        parameters_required: true
+        has_body: false
+        identifiers_used: single
+        authorization_required: true
+    endpoint_level_properties:
+      defined_http_verbs: Single

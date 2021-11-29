@@ -1,0 +1,42 @@
+/accountHolders:
+  count: 1
+  attacks:
+  - name: Authorization token manipulation
+    check_rule: Endpoint's operation requires authorization
+    description: 'Request is repeated with authorization token of another user to
+      check whether authorization is incorrect and non-permitted access is granted.
+      Request is repeated without authorization token to check whether authorization
+      checks are done '
+    examples: []
+    target_operation:
+    - get
+    expected_response:
+      get:
+        '401':
+          content:
+            application/json:
+              examples:
+                generic:
+                  $ref: '#/components/examples/generic-401'
+              schema:
+                $ref: '#/components/schemas/RestServiceError'
+          description: Unauthorized - authentication required.
+        '403':
+          content:
+            application/json:
+              examples:
+                generic:
+                  $ref: '#/components/examples/generic-403'
+              schema:
+                $ref: '#/components/schemas/RestServiceError'
+          description: Forbidden - insufficient permissions to process the request.
+    unexpected_response: {}
+    unexpected_response_codes:
+    - '200'
+    - '400'
+    - '422'
+    - '500'
+attacked_paths: 1
+not_attacked_paths: 0
+total_paths: 1
+attacks_proposed: 1
