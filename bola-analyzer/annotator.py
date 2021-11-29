@@ -1,4 +1,5 @@
 import yaml
+from os.path import commonprefix
 
 
 # ToDo: Move property names to distinct namespace and use internal constant corresponding ids instead
@@ -14,7 +15,12 @@ class OpenAPISpecAnnotator:
             len(self.operations): 'All',
         }
         self.paths_found = 0
+        self.methods_found = 0
+        self.identifiers_found = 0
         self.authorization_specified = False
+        self.parameters_dict = dict()
+        self.identifiers_dict = dict()
+        self.no_identifiers_dict = dict()
 
     def parse_spec(self, filename):
         """Public method to invoke OpenAPI 3.0 specification processing to annotate with BOLA/IDOR properties.
@@ -39,13 +45,15 @@ class OpenAPISpecAnnotator:
                     self.__parse_endpoint(path, path_schema)
                     self.paths_found += 1
         print("Total paths processed:", self.paths_found)
+        self.identifiers_dict = {key: value for key,value in self.parameters_dict.items() if key[2] is True}
+        self.no_identifiers_dict = {key: value for key, value in self.parameters_dict.items() if key[2] is False}
         f.close()
 
     def __parse_endpoint(self, path, path_schema):
         path_schema: dict
         # Endpoint parameter properties processing
         if path_schema.get('parameters') is not None:
-            modified_parameters = self.__analyze_parameters(path_schema.get('parameters'))
+            modified_parameters = self.__analyze_parameters(path_schema.get('parameters'), path)
             path_schema['parameters'] = modified_parameters
 
         endpoint_authorization = self.authorization_specified
@@ -56,8 +64,9 @@ class OpenAPISpecAnnotator:
         # Method level parameter complement
         for operation in found_operations:
             modified_operation = self.__analyze_operation(operation, path_schema.get(operation),
-                                                          path_schema.get('parameters'), endpoint_authorization)
+                                                          path_schema.get('parameters'), endpoint_authorization, path)
             path_schema[operation] = modified_operation
+            self.methods_found += 1
 
         # Endpoint level properties complement
         # Defined HTTP verbs property
@@ -67,20 +76,20 @@ class OpenAPISpecAnnotator:
         path_schema['endpoint_level_properties'] = endpoint_level_properties
         self.bola_spec['paths'][path] = path_schema
 
-    def __analyze_parameters(self, parameters_list):
+    def __analyze_parameters(self, parameters_list, path=None):
         """Private method is invoked with a list of parameters (described at endpoint or method level) passed
         to iteratively complement properties of every parameter in the list"""
         parameters_list: list
         modified_parameters = []
         for i, parameter_schema in enumerate(parameters_list):
-            parameter_level_properties = self.__analyze_parameter(parameter_schema)
+            parameter_level_properties = self.__analyze_parameter(parameter_schema, path)
             if len(parameter_level_properties):
                 parameter_schema: dict
                 parameter_schema['parameter_level_properties'] = parameter_level_properties
             modified_parameters.append(parameter_schema)
         return modified_parameters
 
-    def __analyze_parameter(self, parameter_schema):
+    def __analyze_parameter(self, parameter_schema, path=None):
         """Private method is invoked with a parameter schema passed. Returns a copy of the parameter schemas passed
         with parameter_level_properties dictionary inserted with the 'parameter_level_properties' key"""
         # ToDo: add reference resolving
@@ -99,22 +108,42 @@ class OpenAPISpecAnnotator:
                     if schema_field.get('items').get('type') == 'integer':
                         is_identifier = True
                 if parameter_schema['name'].lower() == "id" or parameter_schema['name'].lower().endswith("_id") \
-                        or parameter_schema['name'].endswith("Id") or parameter_schema['name'].endswith("ID"):
+                        or parameter_schema['name'].endswith("Id") or parameter_schema['name'].endswith("ID") \
+                        or parameter_schema['name'].lower() == "pid":
+                    is_identifier = True
+                # ToDo: Add dictionary-based check
+                if parameter_schema['name'].lower().endswith('name'):
                     is_identifier = True
                 if parameter_schema['name'].lower() == "uuid" or parameter_schema['name'].lower().endswith("uuid"):
                     is_identifier = True
                     parameter_type = 'UUID'
                 # ToDo: add checks for personal information type
+                # ToDo: Add more checks on path
+                if parameter_schema['in'] == 'path' and is_identifier is False:
+                    if path is not None:
+                        substrings = path.split('/')
+                        location = substrings.index(''.join(['{', parameter_schema['name'], '}']))
+                        preceding_string = substrings[location-1]
+                        prefix = commonprefix([parameter_schema['name'].lower(), preceding_string.lower()])
+                        if 1 < len(preceding_string) - 3 <= len(prefix):
+                            is_identifier = True
+
             # ToDo: add parsing of complex objects
         parameter_level_properties['is_identifier'] = is_identifier
 
         # ToDo: Add check for $ref schema
         if is_identifier:
+            self.identifiers_found += 1
             parameter_level_properties['location'] = parameter_schema['in']
             parameter_level_properties['type'] = parameter_type if parameter_type is not None else schema_field['type']
+        if self.parameters_dict.get((parameter_schema['name'], parameter_schema['in'], is_identifier)) is not None:
+            self.parameters_dict[(parameter_schema['name'], parameter_schema['in'], is_identifier)] += 1
+        else:
+            self.parameters_dict[(parameter_schema['name'], parameter_schema['in'], is_identifier)] = 1
         return parameter_level_properties
 
-    def __analyze_operation(self, operation, operation_schema, endpoint_parameters=None, endpoint_authorization=False):
+    def __analyze_operation(self, operation, operation_schema, endpoint_parameters=None,
+                            endpoint_authorization=False, path=None):
         method_level_properties = {}
         # Operation parameters
         operation_parameters_defined = True if operation_schema.get('parameters') is not None else False
@@ -130,7 +159,7 @@ class OpenAPISpecAnnotator:
 
         # Annotate operation parameters (do it first may be)
         if operation_schema.get('parameters') is not None:
-            modified_parameters = self.__analyze_parameters(operation_schema.get('parameters'))
+            modified_parameters = self.__analyze_parameters(operation_schema.get('parameters'), path)
             operation_schema['parameters'] = modified_parameters
 
         # Number of identifiers targeted/affected property:

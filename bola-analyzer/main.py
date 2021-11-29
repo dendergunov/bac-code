@@ -29,7 +29,21 @@ def main():
     attack_analyzer_instance.estimate_attacks(args.properties_savepath)
     attack_analyzer_instance.save_output(args.attacks_savepath)
     end = time.time()
-    print("Done in", end-start, "seconds")
+    print("Path processed:", property_analyzer.paths_found)
+    print("Methods processed:", property_analyzer.methods_found)
+    print("Identifiers recognized:", property_analyzer.identifiers_found)
+    print()
+    print("Parameters found:", len(property_analyzer.parameters_dict.keys()))
+    print("Parameters:", property_analyzer.parameters_dict)
+    print()
+    print("Identifiers found:", len(property_analyzer.identifiers_dict.keys()))
+    print("identifiers:", property_analyzer.identifiers_dict)
+    print()
+    print("Non-identifiers found:", len(property_analyzer.no_identifiers_dict.keys()))
+    print("non-identifiers:", property_analyzer.no_identifiers_dict)
+    print()
+    print("Done in", end - start, "seconds")
+    print(attack_analyzer_instance.attacks_count_dict)
 
 
 if __name__ == "__main__":

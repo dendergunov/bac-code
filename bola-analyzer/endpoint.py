@@ -17,15 +17,39 @@ class EndpointAttackAnalyzer:
         }
         self.attack_proposed = 0
         # ToDo: add counters for every type of attacks proposed
+        # authorization token manipulation
+        self.attack_atm = 0
+        # verb tampering non-specified
+        self.attack_vtns = 0
+        # verb tampering parameters exchange
+        self.attack_vtpe = 0
+        # parameter pollution
+        self.attack_pp = 0
+        # enumeration
+        self.attack_simple_enum = 0
+        # enumeration with ap priori knowledge
+        self.attack_complex_enum = 0
+        # enumeration array append
+        self.attack_array_enum = 0
+        # enumeration wild card
+        self.attack_wildcard = 0
+        # enumeration file extension
+        self.attack_file_ext = 0
 
-    def parse_endpoint(self):
+    def parse_endpoint(self, **disable_attack_flags):
         # Call attack checker methods
         content: dict
-        self.__authorization_token_manipulation()
-        self.__verb_tampering_non_specified()
-        self.__verb_tampering_parameters_exchange()
-        self.__enumeration()
-        self.__parameter_pollution()
+        if disable_attack_flags.get('authorization_token_manipulation_off') is not True:
+            self.__authorization_token_manipulation()
+        if disable_attack_flags.get('verb_tampering_non_specified_off') is not True:
+            self.__verb_tampering_non_specified()
+        # ToDo: Rename verb tampering parameters exchange parameters and body
+        if disable_attack_flags.get('verb_tampering_parameters_exchange_off') is not True:
+            self.__verb_tampering_parameters_exchange()
+        if disable_attack_flags.get('enumeration_off') is not True:
+            self.__enumeration()
+        if disable_attack_flags.get('parameter_pollution_off') is not True:
+            self.__parameter_pollution()
 
     def __authorization_token_manipulation(self):
         """path - endpoint's path (OpenAPI PATH object)
@@ -63,8 +87,9 @@ class EndpointAttackAnalyzer:
                     unexpected_responses.pop('403')
                 attack['expected_response'][operation] = expected_responses
                 attack['unexpected_response_codes'] = list(unexpected_responses.keys())
-            self.attack_spec.append(attack)
             self.attack_proposed += 1
+            self.attack_atm += 1
+            self.attack_spec.append(attack)
 
     def __verb_tampering_non_specified(self):
         """Check for verb tampering attack: operation is changed to one without definition in specification
@@ -74,9 +99,12 @@ class EndpointAttackAnalyzer:
         non_specified_operation = [operation for operation in operations if self.path_schema.get(operation) is None]
         for operation in operations:
             if self.path_schema.get(operation) is not None:
-                parameters_required = self.path_schema[operation]['method_level_properties']['parameters_required']
-                has_body = self.path_schema[operation]['method_level_properties']['has_body']
-                if parameters_required or has_body:
+                # ToDo: move back parameters_required, article specifies on identifiers_used
+                # parameters_required = self.path_schema[operation]['method_level_properties']['parameters_required']
+                # has_body = self.path_schema[operation]['method_level_properties']['has_body']
+                parameters_required = self.path_schema[operation]['method_level_properties']['identifiers_used']
+                # if parameters_required or has_body:
+                if parameters_required != 'zero':
                     attack = deepcopy(self.attack_structure_example)
                     attack['name'] = 'Change HTTP Method (Verb tampering) to non-specified'
                     attack['target_operation'] = operation
@@ -90,6 +118,8 @@ class EndpointAttackAnalyzer:
                     attack['expected_response'] = {'405': "Method Not Allowed", '501': "Not Implemented"}
                     unexpected_responses = deepcopy(self.path_schema[operation]['responses'])
                     attack['unexpected_response_codes'] = list(unexpected_responses.keys())
+                    self.attack_proposed += 1
+                    self.attack_vtns += 1
                     self.attack_spec.append(attack)
 
     def __verb_tampering_parameters_exchange(self):
@@ -115,25 +145,32 @@ class EndpointAttackAnalyzer:
                     continue
                 sink_operation_parameters = sink_operation_schema.get('parameters')
                 source_operation_parameters = source_operation_schema.get('parameters')
+
                 # ToDo: implement parameters list equality (only non-emptiness is checked) more carefully
                 parameters_are_same = True
                 bodies_are_same = True
-                if len(sink_operation_parameters) == len(source_operation_parameters):
-                    sink_operation_parameters = sorted(sink_operation_parameters, key=lambda x: x['name'])
-                    source_operation_parameters = sorted(source_operation_parameters, key=lambda x: x['name'])
-                    for i, parameter in enumerate(sink_operation_parameters):
-                        if parameter['name'] != source_operation_parameters[i]['name']:
-                            parameters_are_same = False
-                            break
-                        if parameter['schema']['type'] != source_operation_parameters[i]['schema']['type']:
-                            parameters_are_same = False
-                            break
-                else:
+                if (sink_operation_parameters is None) or (source_operation_parameters is None):
                     parameters_are_same = False
+                else:
+                    if len(sink_operation_parameters) == len(source_operation_parameters):
+                        sink_operation_parameters = sorted(sink_operation_parameters, key=lambda x: x['name'])
+                        source_operation_parameters = sorted(source_operation_parameters, key=lambda x: x['name'])
+                        for i, parameter in enumerate(sink_operation_parameters):
+                            if parameter['name'] != source_operation_parameters[i]['name']:
+                                parameters_are_same = False
+                                break
+                            if parameter['schema']['type'] != source_operation_parameters[i]['schema']['type']:
+                                parameters_are_same = False
+                                break
+                    if len(sink_operation_parameters) != len(source_operation_parameters):
+                        parameters_are_same = False
                 if sink_operation_schema.get('requestBody') != source_operation_schema.get('requestBody'):
                     bodies_are_same = False
                 if parameters_are_same is False or bodies_are_same is False:
-                    operations_to_take_their_parameters.append(source_operation)
+                    if sink_operation_parameters is not None:
+                        operations_to_take_their_parameters.append(source_operation)
+            if len(operations_to_take_their_parameters) == 0:
+                continue
             attack = deepcopy(self.attack_structure_example)
             attack['name'] = 'Adding parameters and body used in another HTTP Methods'
             attack['sink_operation'] = sink_operation
@@ -150,6 +187,8 @@ class EndpointAttackAnalyzer:
             else:
                 attack['expected_response'] = {'400': "Bad Request"}
             attack['unexpected_response_codes'] = list(unexpected_responses.keys())
+            self.attack_proposed += 1
+            self.attack_vtpe += 1
             self.attack_spec.append(attack)
 
     def __enumeration(self):
@@ -185,23 +224,30 @@ class EndpointAttackAnalyzer:
                     description['parameter_level_properties'] = identifier['parameter_level_properties']
                     description['additional_check_rule'] = "Identifier's type is integer AND Authorization is required"
                     attack['targeted_parameters'][identifier['name']] = description
+                    self.attack_simple_enum += 1
                     print('Simple enumeration')
                     continue
 
                 if identifier['parameter_level_properties']['type'] == 'array':
-                    if identifier['parameter_level_properties']['items']['type'] == 'array':
-                        description['attacks'] = ["Enumeration without a priori knowledge",
-                                                  "Non-owned object's identifier appending to the end of a list"]
-                        description['parameter_level_properties'] = identifier['parameter_level_properties']
+                    description['attacks'] = ["Non-owned object's identifier appending to the end of a list"]
+                    description['parameter_level_properties'] = identifier['parameter_level_properties']
+                    description[
+                        'additional_check_rule'] = "Authorization is required AND Parameter's type is array"
+                    self.attack_array_enum += 1
+                    print('Identifier appending to the end')
+                    if identifier['schema']['items']['type'] == 'integer':
+                        self.attack_simple_enum += 1
+                        description['attacks'].append("Enumeration without a priori knowledge")
                         description[
                             'additional_check_rule'] = "Parameter's type is array AND parameter's item's type is " \
                                                        "integer AND Authorization is required "
-                        attack['targeted_parameters'][identifier['name']] = description
+                        self.attack_simple_enum += 1
                         print('Simple enumeration')
-                        print('Identifier appending to the end')
-                        continue
+                    attack['targeted_parameters'][identifier['name']] = description
+                    continue
 
                 # ToDo: Add case-insensitivity for parameter names
+                # ToDo: Add GUID check
                 if identifier['parameter_level_properties']['type'] == 'UUID':
                     description['attacks'] = ["Enumeration with a priori knowledge"]
                     description['403_response_code_specified'] = True if self.path_schema[operation]['responses'] \
@@ -210,18 +256,23 @@ class EndpointAttackAnalyzer:
                     description[
                         'additional_check_rule'] = "Identifier's type is UUID"
                     attack['targeted_parameters'][identifier['name']] = description
+                    self.attack_complex_enum += 1
                     continue
 
                 # ToDo: Add for other identifiers
                 description['attacks'] = ["Enumeration with a priori knowledge"]
                 description['additional_check_rule'] = "Authorization is required"
 
+                # ToDo: Add file extension check in path
                 if identifier['parameter_level_properties']['type'] == 'string':
                     description['attacks'].append("File extension decoration")
                     description['attacks'].append("Wildcard replacement")
                     description['additional_check_rule'] += ' '.join([description['additional_check_rule'],
                                                                       "AND identifier's type is string"])
+                    self.attack_wildcard += 1
+                    self.attack_file_ext += 1
                 attack['targeted_parameters'][identifier['name']] = description
+                self.attack_complex_enum += 1
             unexpected_responses = deepcopy(self.path_schema[operation]['responses'])
             if unexpected_responses.get('400') is not None:
                 attack['expected_response'] = unexpected_responses.pop('400')
@@ -244,6 +295,8 @@ class EndpointAttackAnalyzer:
             if not self.path_schema[operation]['method_level_properties']['parameters_required']:
                 continue
             merged_parameters_list = endpoint_parameters + self.path_schema[operation].get('parameters', [])
+            if len(merged_parameters_list) == 0:
+                continue
             sorted_parameters_list = sorted(merged_parameters_list, key=lambda x: x['name'])
             for i, parameter in enumerate(sorted_parameters_list[:-1]):
                 # ToDo: add other checks for parameter equivalence
@@ -270,5 +323,6 @@ class EndpointAttackAnalyzer:
                 else:
                     attack['expected_response'] = {'422': "Unprocessable Entity"}
                 attack['unexpected_response_codes'] = list(unexpected_responses.keys())
-                self.attack_spec.append(attack)
                 self.attack_proposed += 1
+                self.attack_pp += 1
+                self.attack_spec.append(attack)
