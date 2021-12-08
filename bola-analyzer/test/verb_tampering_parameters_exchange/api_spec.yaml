@@ -1,4 +1,4 @@
-# Test for verb tampering parameters exchanged
+# Test for verb tampering content exchange
 openapi: 3.0.1
 paths:
   /vaults/{vaultUuid}/items:
@@ -12,18 +12,12 @@ paths:
           schema:
             pattern: ^[\da-z]{26}$
             type: string
-          parameter_level_properties:
-            is_identifier: true
-            location: path
-            type: UUID
         - description: Filter the Item collection based on Item name using SCIM eq filter
           in: query
           name: filter
           schema:
             example: title eq "Some Item Name"
             type: string
-          parameter_level_properties:
-            is_identifier: false
       responses:
         '200':
           content:
@@ -56,12 +50,6 @@ paths:
       summary: Get all items for inside a Vault
       tags:
         - Items
-      method_level_properties:
-        operation_only_parameters_specified: true
-        parameters_required: true
-        has_body: false
-        identifiers_used: single
-        authorization_required: true
     post:
       operationId: CreateVaultItem
       parameters:
@@ -72,10 +60,6 @@ paths:
           schema:
             pattern: ^[\da-z]{26}$
             type: string
-          parameter_level_properties:
-            is_identifier: true
-            location: path
-            type: UUID
       requestBody:
         content:
           application/json:
@@ -132,11 +116,3 @@ paths:
       summary: Create a new Item
       tags:
         - Items
-      method_level_properties:
-        operation_only_parameters_specified: true
-        parameters_required: true
-        has_body: true
-        identifiers_used: single
-        authorization_required: true
-    endpoint_level_properties:
-      defined_http_verbs: Multiple

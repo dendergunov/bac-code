@@ -2,7 +2,8 @@
   count: 1
   attacks:
   - name: Enumeration
-    check_rule: Operation uses parameters AND operation has parameters identifiers
+    check_rule: 'Authorization is required AND Operation uses parameters AND operation
+      has parameters identifiers '
     description: 'Identifier is tampered for enumeration based on automatically or
       semi-automatically determined pattern. In the simplest form, identifier is sequential
       and enumeration leads to targeting existing object with identifier being unknown
@@ -13,11 +14,13 @@
       id:
         attacks:
         - Enumeration without a priori knowledge
+        additional_check_rule:
+        - Identifier's type is integer
         parameter_level_properties:
           is_identifier: true
+          is_filename: false
           location: path
           type: integer
-        additional_check_rule: Identifier's type is integer AND Authorization is required
     expected_response:
       content:
         application/json:

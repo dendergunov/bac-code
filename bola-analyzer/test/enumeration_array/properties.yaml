@@ -5,9 +5,9 @@ security:
 paths:
   /accountHolders:
     get:
-      description: Returns a specific account holder.
+      description: Returns specified account holders.
       parameters:
-      - description: Unique identifier of the account holder.
+      - description: List of unique identifiers of the account holders.
         in: query
         name: id
         required: true
@@ -17,6 +17,7 @@ paths:
             type: string
         parameter_level_properties:
           is_identifier: true
+          is_filename: false
           location: query
           type: array
       responses:
@@ -71,10 +72,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/RestServiceError'
           description: Internal Server Error - the server could not process the request.
-      security:
-      - BasicAuth: []
-      - ApiKeyAuth: []
-      summary: Retrieve an account holder.
       tags:
       - Account holders
       method_level_properties:
@@ -84,4 +81,4 @@ paths:
         identifiers_used: single
         authorization_required: true
     endpoint_level_properties:
-      defined_http_verbs: Single
+      defined_http_verbs: single

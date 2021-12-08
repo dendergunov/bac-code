@@ -1,0 +1,59 @@
+/repositories/{workspace}/{repo_slug}/downloads/{filename}:
+  count: 3
+  attacks:
+  - name: Enumeration
+    check_rule: 'Authorization is required AND Operation uses parameters AND operation
+      has parameters identifiers '
+    description: 'Identifier is tampered for enumeration based on automatically or
+      semi-automatically determined pattern. In the simplest form, identifier is sequential
+      and enumeration leads to targeting existing object with identifier being unknown
+      at the start '
+    examples: []
+    target_operation: get
+    targeted_parameters:
+      filename:
+        attacks:
+        - Enumeration with a priori knowledge
+        - Add/Change file extension
+        - Wildcard replacement
+        additional_check_rule:
+        - Identifier's type is not integer or object
+        - Parameter identifies a file and identifier's type is string, uuid or list
+        - Identifier's type is string
+        parameter_level_properties: &id001
+          is_identifier: true
+          is_filename: true
+          location: path
+          type: string
+    expected_response:
+      '403': Forbidden
+    unexpected_response_codes:
+    - default
+  - name: Enumeration
+    check_rule: 'Authorization is required AND Operation uses parameters AND operation
+      has parameters identifiers '
+    description: 'Identifier is tampered for enumeration based on automatically or
+      semi-automatically determined pattern. In the simplest form, identifier is sequential
+      and enumeration leads to targeting existing object with identifier being unknown
+      at the start '
+    examples: []
+    target_operation: delete
+    targeted_parameters:
+      filename:
+        attacks:
+        - Enumeration with a priori knowledge
+        - Add/Change file extension
+        - Wildcard replacement
+        additional_check_rule:
+        - Identifier's type is not integer or object
+        - Parameter identifies a file and identifier's type is string, uuid or list
+        - Identifier's type is string
+        parameter_level_properties: *id001
+    expected_response:
+      '403': Forbidden
+    unexpected_response_codes:
+    - default
+attacked_paths: 1
+not_attacked_paths: 0
+total_paths: 1
+attacks_proposed: 3

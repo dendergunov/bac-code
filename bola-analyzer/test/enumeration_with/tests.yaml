@@ -1,8 +1,9 @@
 /accountHolders/{UUID}:
-  count: 3
+  count: 1
   attacks:
   - name: Enumeration
-    check_rule: Operation uses parameters AND operation has parameters identifiers
+    check_rule: 'Authorization is required AND Operation uses parameters AND operation
+      has parameters identifiers '
     description: 'Identifier is tampered for enumeration based on automatically or
       semi-automatically determined pattern. In the simplest form, identifier is sequential
       and enumeration leads to targeting existing object with identifier being unknown
@@ -10,13 +11,16 @@
     examples: []
     target_operation: get
     targeted_parameters:
-      id:
+      UUID:
         attacks:
         - Enumeration with a priori knowledge
-        - File extension decoration
-        - Wildcard replacement
-        additional_check_rule: Authorization is requiredAuthorization is required
-          AND identifier's type is string
+        additional_check_rule:
+        - Identifier's type is not integer or object
+        parameter_level_properties:
+          is_identifier: true
+          is_filename: false
+          location: path
+          type: UUID/GUID
     expected_response:
       content:
         application/json:
@@ -34,4 +38,4 @@
 attacked_paths: 1
 not_attacked_paths: 0
 total_paths: 1
-attacks_proposed: 3
+attacks_proposed: 1

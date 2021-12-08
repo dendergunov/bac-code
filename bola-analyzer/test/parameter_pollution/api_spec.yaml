@@ -13,7 +13,7 @@ paths:
       description: Exchange data with another account
       parameters:
         - description: Unique identifier of the account sender
-          in: query
+          in: header
           name: accountID
           required: true
           schema:

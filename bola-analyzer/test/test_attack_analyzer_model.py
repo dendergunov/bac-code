@@ -12,6 +12,7 @@ sys.path.insert(0, parentdir)
 
 import annotator
 import attack_analyzer
+import attack_technique
 
 
 class FunctionalTestCase(unittest.TestCase):
@@ -72,7 +73,7 @@ class FunctionalTestCase(unittest.TestCase):
 
         print("Done in", end - start, "seconds")
         self.assertTrue(list(attack_analyzer_instance.attack_spec.values())[0]['attacks'][0]['name'] ==
-                        "Authorization token manipulation")
+                        attack_technique.manipulate_auth_data)
 
     def test_verb_tampering_non_specified(self):
         start = time.time()
@@ -93,7 +94,7 @@ class FunctionalTestCase(unittest.TestCase):
 
         print("Done in", end - start, "seconds")
         self.assertTrue(list(attack_analyzer_instance.attack_spec.values())[0]['attacks'][0]['name'] ==
-                        "Change HTTP Method (Verb tampering) to non-specified")
+                        attack_technique.tamper_verb_non_spec)
 
     def test_verb_tampering_parameters_exchange(self):
         start = time.time()
@@ -154,6 +155,25 @@ class FunctionalTestCase(unittest.TestCase):
                                                   verb_tampering_parameters_exchange_off=True,
                                                   parameter_pollution_off=True)
         attack_analyzer_instance.save_output(os.path.join(currentdir, "enumeration_array", "tests.yaml"))
+        end = time.time()
+
+        print("Done in", end - start, "seconds")
+        self.assertTrue(list(attack_analyzer_instance.attack_spec.values())[0]['attacks'][0]['name'] == 'Enumeration')
+
+    def test_enumeration_file(self):
+        start = time.time()
+        property_analyzer = annotator.OpenAPISpecAnnotator()
+        property_analyzer.parse_spec(os.path.join(currentdir,
+                                                  "enumeration_file", "api_spec.yaml"))
+        property_analyzer.save_spec(os.path.join(currentdir, "enumeration_file", "properties.yaml"))
+
+        attack_analyzer_instance = attack_analyzer.AttackAnalyzer()
+        attack_analyzer_instance.estimate_attacks(os.path.join(currentdir, "enumeration_file", "properties.yaml"),
+                                                  authorization_token_manipulation_off=True,
+                                                  verb_tampering_non_specified_off=True,
+                                                  verb_tampering_parameters_exchange_off=True,
+                                                  parameter_pollution_off=True)
+        attack_analyzer_instance.save_output(os.path.join(currentdir, "enumeration_file", "tests.yaml"))
         end = time.time()
 
         print("Done in", end - start, "seconds")

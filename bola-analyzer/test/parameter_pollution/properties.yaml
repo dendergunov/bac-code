@@ -10,20 +10,22 @@ paths:
         type: string
       parameter_level_properties:
         is_identifier: true
+        is_filename: false
         location: path
         type: string
     post:
       description: Exchange data with another account
       parameters:
       - description: Unique identifier of the account sender
-        in: query
+        in: header
         name: accountID
         required: true
         schema:
           type: string
         parameter_level_properties:
           is_identifier: true
-          location: query
+          is_filename: false
+          location: header
           type: string
       - description: Unique identifier of the account reciever
         in: query
@@ -33,6 +35,7 @@ paths:
           type: string
         parameter_level_properties:
           is_identifier: true
+          is_filename: false
           location: query
           type: string
       responses:
@@ -98,4 +101,4 @@ paths:
         identifiers_used: multiple
         authorization_required: true
     endpoint_level_properties:
-      defined_http_verbs: Single
+      defined_http_verbs: single

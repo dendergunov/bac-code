@@ -9,12 +9,13 @@ paths:
       parameters:
       - description: Unique identifier of the account holder.
         in: path
-        name: id
+        name: ID
         required: true
         schema:
           type: string
         parameter_level_properties:
           is_identifier: true
+          is_filename: false
           location: path
           type: string
       responses:
@@ -69,10 +70,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/RestServiceError'
           description: Internal Server Error - the server could not process the request.
-      security:
-      - BasicAuth: []
-      - ApiKeyAuth: []
-      summary: Retrieve an account holder.
       tags:
       - Account holders
       method_level_properties:
@@ -82,4 +79,4 @@ paths:
         identifiers_used: single
         authorization_required: true
     endpoint_level_properties:
-      defined_http_verbs: Single
+      defined_http_verbs: single

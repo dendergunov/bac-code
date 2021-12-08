@@ -1,12 +1,13 @@
 /accountHolders:
   count: 1
   attacks:
-  - name: Authorization token manipulation
-    check_rule: Endpoint's operation requires authorization
-    description: 'Request is repeated with authorization token of another user to
-      check whether authorization is incorrect and non-permitted access is granted.
-      Request is repeated without authorization token to check whether authorization
-      checks are done '
+  - name: Authorization data manipulation
+    check_rule: 'Endpoint''s operation requires authorization AND (Operation uses
+      parameters OR has non-empty body) '
+    description: 'Request is repeated with authorization data of another user to check
+      whether authorization is incorrect and non-permitted access is granted. Request
+      is repeated without authorization data to check whether authorization checks
+      are done '
     examples: []
     target_operation:
     - get

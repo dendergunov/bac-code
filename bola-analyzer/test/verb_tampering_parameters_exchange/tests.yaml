@@ -2,10 +2,9 @@
   count: 1
   attacks:
   - name: Adding parameters and body used in another HTTP Methods
-    check_rule: 'Defined HTTP endpoints property''s value IS NOT single AND Operations
-      require parameters AND (operation-specific parameter lists are not same AND
-      request bodies are not same) AND one of operations (require parameters OR has
-      body) '
+    check_rule: Defined HTTP endpoints property's value IS NOT single AND (One of
+      methods requires authorization) AND ((Bodies are not empty and same) OR (Sets
+      of parameters are different))
     description: 'Authorization may be performed for a concrete verb and its parameters
       but service logic ignores requests verb '
     examples: []
@@ -19,10 +18,9 @@
     - '401'
     - '404'
   - name: Adding parameters and body used in another HTTP Methods
-    check_rule: 'Defined HTTP endpoints property''s value IS NOT single AND Operations
-      require parameters AND (operation-specific parameter lists are not same AND
-      request bodies are not same) AND one of operations (require parameters OR has
-      body) '
+    check_rule: Defined HTTP endpoints property's value IS NOT single AND (One of
+      methods requires authorization) AND ((Bodies are not empty and same) OR (Sets
+      of parameters are different))
     description: 'Authorization may be performed for a concrete verb and its parameters
       but service logic ignores requests verb '
     examples: []

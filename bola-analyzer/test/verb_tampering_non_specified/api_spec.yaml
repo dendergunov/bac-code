@@ -63,9 +63,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/RestServiceError"
           description: Internal Server Error - the server could not process the request.
-      security:
-        - BasicAuth: []
-        - ApiKeyAuth: []
       summary: Retrieve an account holder.
       tags:
         - Account holders

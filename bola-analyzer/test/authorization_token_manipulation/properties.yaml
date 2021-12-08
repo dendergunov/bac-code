@@ -58,17 +58,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/RestServiceError'
           description: Internal Server Error - the server could not process the request.
-      security:
-      - BasicAuth: []
-      - ApiKeyAuth: []
-      summary: Retrieve an account holder.
+      parameters:
+      - description: Limit number of returned accounts
+        in: query
+        name: limit
+        schema:
+          type: integer
+        parameter_level_properties:
+          is_identifier: false
       tags:
       - Account holders
       method_level_properties:
-        operation_only_parameters_specified: false
-        parameters_required: false
+        operation_only_parameters_specified: true
+        parameters_required: true
         has_body: false
         identifiers_used: zero
         authorization_required: true
     endpoint_level_properties:
-      defined_http_verbs: Single
+      defined_http_verbs: single

@@ -3,7 +3,8 @@
   attacks:
   - name: Parameter pollution
     check_rule: 'Operation uses authorization AND Operation requires parameters AND
-      operation requires two parameters with same names in different places '
+      operation uses more than one identifier AND requires two parameters with same
+      names in different places '
     description: 'Information in one request is processed and sent into different
       processing units of server. Tampering with one of parameter''s value is a way
       to check that authorization is consistent and there''s no case that value from
@@ -20,17 +21,19 @@
         type: string
       parameter_level_properties:
         is_identifier: true
+        is_filename: false
         location: path
         type: string
     - description: Unique identifier of the account sender
-      in: query
+      in: header
       name: accountID
       required: true
       schema:
         type: string
       parameter_level_properties:
         is_identifier: true
-        location: query
+        is_filename: false
+        location: header
         type: string
     expected_response:
       content:

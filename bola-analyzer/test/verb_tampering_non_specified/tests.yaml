@@ -1,4 +1,34 @@
-attacked_paths: 0
-not_attacked_paths: 1
+/accountHolders:
+  count: 1
+  attacks:
+  - name: Verb tampering non-specified
+    check_rule: Defined HTTP endpoints property's value is not 'all'AND (operation
+      uses parameters OR has body)
+    description: 'Request''s verb is changed to other verb that is not specified in
+      endpoint''s description. Incorrect behavior is when authorization checks are
+      performed over described verbs and verb transformation is performed after authorization
+      check '
+    examples: []
+    target_operation: get
+    substitute_operations:
+    - put
+    - post
+    - delete
+    - options
+    - head
+    - patch
+    - trace
+    expected_response:
+      '405': Method Not Allowed
+      '501': Not Implemented
+    unexpected_response_codes:
+    - '200'
+    - '400'
+    - '401'
+    - '403'
+    - '422'
+    - '500'
+attacked_paths: 1
+not_attacked_paths: 0
 total_paths: 1
-attacks_proposed: 0
+attacks_proposed: 1
