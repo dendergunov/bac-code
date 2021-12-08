@@ -1,7 +1,8 @@
 from copy import deepcopy
 from typing import Dict, List, Any, Union
-import attack_technique
 
+import attack_technique
+from property import *
 
 operations = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']
 
@@ -35,34 +36,35 @@ class EndpointAttackAnalyzer:
             self.__authorization_data_manipulation()
         if disable_attack_flags.get('verb_tampering_non_specified_off') is not True:
             self.__verb_tampering_non_specified()
-        # ToDo: Rename verb tampering parameters exchange parameters and body
         if disable_attack_flags.get('verb_tampering_parameters_exchange_off') is not True:
-            self.__verb_tampering_parameters_exchange()
+            self.__verb_tampering_content_exchange()
         if disable_attack_flags.get('enumeration_off') is not True:
             self.__enumeration()
         if disable_attack_flags.get('parameter_pollution_off') is not True:
             self.__parameter_pollution()
 
     def __authorization_data_manipulation(self):
-        """path - endpoint's path (OpenAPI PATH object)
-        path_schema - endpoint's content"""
+        """Check for manipulation with authorization data to tamper with authorization"""
         self.path_schema: dict
         target_operations = []
         for operation in operations:
             if self.path_schema.get(operation) is not None:
                 operation_schema = self.path_schema.get(operation)
                 if operation_schema.get('method_level_properties') is not None:
-                    if operation_schema['method_level_properties']['authorization_required']:
+                    if operation_schema['method_level_properties'][MethodProperties.AUTHORIZATION_REQUIRED] and \
+                            (operation_schema['method_level_properties'][MethodProperties.PARAMETERS_REQUIRED] or \
+                             operation_schema['method_level_properties'][MethodProperties.HAS_BODY]):
                         target_operations.append(operation)
 
         if len(target_operations):
             attack = deepcopy(self.attack_structure_example)
-            attack['name'] = 'Authorization token manipulation'
+            attack['name'] = attack_technique.manipulate_auth_data
             attack['target_operation'] = deepcopy(target_operations)
-            attack['check_rule'] = "Endpoint's operation requires authorization"
-            attack['description'] = 'Request is repeated with authorization token of another user to check whether ' \
+            attack['check_rule'] = "Endpoint's operation requires authorization AND (Operation uses parameters OR " \
+                                   "has non-empty body) "
+            attack['description'] = 'Request is repeated with authorization data of another user to check whether ' \
                                     'authorization is incorrect and non-permitted access is granted. Request is ' \
-                                    'repeated without authorization token to check whether authorization checks are ' \
+                                    'repeated without authorization data to check whether authorization checks are ' \
                                     'done '
             attack['expected_response'] = {}
             attack['unexpected_response'] = {}
@@ -89,16 +91,16 @@ class EndpointAttackAnalyzer:
         content - endpoint's content"""
         path_schema: dict
         non_specified_operation = [operation for operation in operations if self.path_schema.get(operation) is None]
+        if len(non_specified_operation) == 0:
+            return
         for operation in operations:
             if self.path_schema.get(operation) is not None:
-                # ToDo: move back parameters_required, article specifies on identifiers_used
-                # parameters_required = self.path_schema[operation]['method_level_properties']['parameters_required']
-                # has_body = self.path_schema[operation]['method_level_properties']['has_body']
-                parameters_required = self.path_schema[operation]['method_level_properties']['identifiers_used']
-                # if parameters_required or has_body:
-                if parameters_required != 'zero':
+                parameters_required = \
+                    self.path_schema[operation]['method_level_properties'][MethodProperties.PARAMETERS_REQUIRED]
+                has_body = self.path_schema[operation]['method_level_properties'][MethodProperties.HAS_BODY]
+                if parameters_required or has_body:
                     attack = deepcopy(self.attack_structure_example)
-                    attack['name'] = 'Change HTTP Method (Verb tampering) to non-specified'
+                    attack['name'] = attack_technique.tamper_verb_non_spec
                     attack['target_operation'] = operation
                     attack['substitute_operations'] = deepcopy(non_specified_operation)
                     attack['check_rule'] = "Defined HTTP endpoints property's value is not 'all'" \
@@ -114,11 +116,11 @@ class EndpointAttackAnalyzer:
                     self.attacks_count_dict[attack_technique.tamper_verb_non_spec] += 1
                     self.attack_spec.append(attack)
 
-    def __verb_tampering_parameters_exchange(self):
+    def __verb_tampering_content_exchange(self):
         """Check for verb tampering attack: operation uses parameters from other operation
         path - endpoint's path (OpenAPI PATH object)
         content - endpoint's content"""
-        if self.path_schema['endpoint_level_properties']['defined_http_verbs'] == 'Single':
+        if self.path_schema['endpoint_level_properties'][EndpointProperties.VERBS_DEFINED] == verbs_defined[1]:
             return
         defined_operations = [operation for operation in operations if self.path_schema.get(operation) is not None]
         for sink_operation in defined_operations:
@@ -129,11 +131,11 @@ class EndpointAttackAnalyzer:
                 sink_operation_schema = self.path_schema.get(sink_operation)
                 source_operation_schema = self.path_schema.get(source_operation)
                 if sink_operation_schema['method_level_properties'][
-                    'operation_only_parameters_specified'] is False and \
+                    MethodProperties.OPERATION_PARAMETERS_DEFINED] is False and \
                         source_operation_schema['method_level_properties'][
-                            'operation_only_parameters_specified'] is False and \
-                        sink_operation_schema['method_level_properties']['has_body'] is False and \
-                        source_operation_schema['method_level_properties']['has_body']:
+                            MethodProperties.OPERATION_PARAMETERS_DEFINED] is False and \
+                        sink_operation_schema['method_level_properties'][MethodProperties.HAS_BODY] is False and \
+                        source_operation_schema['method_level_properties'][MethodProperties.HAS_BODY]:
                     continue
                 sink_operation_parameters = sink_operation_schema.get('parameters')
                 source_operation_parameters = source_operation_schema.get('parameters')
@@ -142,6 +144,8 @@ class EndpointAttackAnalyzer:
                 bodies_are_same = True
                 if (sink_operation_parameters is None) or (source_operation_parameters is None):
                     parameters_are_same = False
+                    if (sink_operation_parameters is None) and (source_operation_parameters is None):
+                        parameters_are_same = True
                 else:
                     if len(sink_operation_parameters) == len(source_operation_parameters):
                         sink_operation_parameters = sorted(sink_operation_parameters, key=lambda x: x['name'])
@@ -166,10 +170,9 @@ class EndpointAttackAnalyzer:
             attack['name'] = 'Adding parameters and body used in another HTTP Methods'
             attack['sink_operation'] = sink_operation
             attack['source_operations'] = operations_to_take_their_parameters
-            attack['check_rule'] = "Defined HTTP endpoints property's value IS NOT single AND " \
-                                   "Operations require parameters AND (operation-specific parameter lists are not " \
-                                   "same AND request bodies are not same) AND one of operations (require parameters " \
-                                   "OR has body) "
+            attack['check_rule'] = "Defined HTTP endpoints property's value IS NOT single AND (One of methods " \
+                                   "requires authorization) AND ((Bodies are not empty and same) OR (Sets of " \
+                                   "parameters are different))"
             attack['description'] = "Authorization may be performed for a concrete verb and its " \
                                     "parameters but service logic ignores requests verb "
             unexpected_responses = deepcopy(self.path_schema[sink_operation]['responses'])
@@ -189,15 +192,14 @@ class EndpointAttackAnalyzer:
         endpoint_parameters = self.path_schema.get('parameters', [])
         defined_operations = [operation for operation in operations if self.path_schema.get(operation) is not None]
         for operation in defined_operations:
-            if not self.path_schema[operation]['method_level_properties']['parameters_required']:
+            if not self.path_schema[operation]['method_level_properties'][MethodProperties.PARAMETERS_REQUIRED]:
                 continue
-            if self.path_schema[operation]['method_level_properties']['identifiers_used'] == 'zero':
+            if self.path_schema[operation]['method_level_properties'][MethodProperties.IDENTIFIERS_USED] == 'zero':
                 continue
             merged_identifiers_list = list(filter(lambda x: x['parameter_level_properties']['is_identifier'],
                                                   endpoint_parameters + self.path_schema[operation].get('parameters',
                                                                                                         [])))
             # Single parameter enumeration
-            # ToDo: Add check for parameters with equal names (should have different keys)
             attack = deepcopy(self.attack_structure_example)
             attack['name'] = 'Enumeration'
             attack['description'] = "Identifier is tampered for enumeration based on automatically " \
@@ -206,64 +208,58 @@ class EndpointAttackAnalyzer:
                                     "existing object with identifier being unknown at the start "
             attack['target_operation'] = operation
             attack['targeted_parameters'] = {}
-            attack['check_rule'] = "Operation uses parameters AND operation has parameters identifiers"
+            attack['check_rule'] = "Authorization is required AND Operation uses parameters AND operation has " \
+                                   "parameters identifiers "
             for identifier in merged_identifiers_list:
                 # Check for simple enumeration if type is integer
                 description = dict()
-                if identifier['parameter_level_properties']['type'] == 'integer':
-                    description['attacks'] = ["Enumeration without a priori knowledge"]
-                    description['parameter_level_properties'] = identifier['parameter_level_properties']
-                    description['additional_check_rule'] = "Identifier's type is integer AND Authorization is required"
-                    attack['targeted_parameters'][identifier['name']] = description
+                description['attacks'] = []
+                description['additional_check_rule'] = []
+
+                identifier_properties = identifier['parameter_level_properties']
+                identifier_type = identifier_properties[ParameterProperties.TYPE]
+                if identifier_type == IdentifierType.INTEGER:
+                    description['attacks'].append(attack_technique.enum_black_box)
+                    description['parameter_level_properties'] = identifier_properties
+                    description['additional_check_rule'].append("Identifier's type is integer")
                     self.attacks_count_dict[attack_technique.enum_black_box] += 1
-                    print('Simple enumeration')
-                    continue
 
-                if identifier['parameter_level_properties']['type'] == 'array':
-                    description['attacks'] = ["Non-owned object's identifier appending to the end of a list"]
-                    description['parameter_level_properties'] = identifier['parameter_level_properties']
+                # Array appending
+                if identifier_type == IdentifierType.LIST:
+                    description['attacks'].append("Non-owned object's identifier appending to the end of a list")
+                    description['parameter_level_properties'] = identifier_properties
                     description[
-                        'additional_check_rule'] = "Authorization is required AND Parameter's type is array"
+                        'additional_check_rule'].append("Parameter's type is array")
                     self.attacks_count_dict[attack_technique.append_list] += 1
-                    print('Identifier appending to the end')
                     if identifier['schema']['items']['type'] == 'integer':
-                        self.attacks_count_dict[attack_technique.enum_black_box] += 1
-                        description['attacks'].append("Enumeration without a priori knowledge")
+                        description['attacks'].append(attack_technique.enum_black_box)
                         description[
-                            'additional_check_rule'] = "Parameter's type is array AND parameter's item's type is " \
-                                                       "integer AND Authorization is required "
+                            'additional_check_rule'].append("Parameter's type is array AND parameter's item's type is "
+                                                            "integer")
                         self.attacks_count_dict[attack_technique.enum_black_box] += 1
-                        print('Simple enumeration')
-                    attack['targeted_parameters'][identifier['name']] = description
-                    continue
 
-                # ToDo: Add case-insensitivity for parameter names
-                # ToDo: Add GUID check
-                if identifier['parameter_level_properties']['type'] == 'UUID':
-                    description['attacks'] = ["Enumeration with a priori knowledge"]
-                    description['403_response_code_specified'] = True if self.path_schema[operation]['responses'] \
-                        .get('403') else False
-                    description['parameter_level_properties'] = identifier['parameter_level_properties']
-                    description[
-                        'additional_check_rule'] = "Identifier's type is UUID"
-                    attack['targeted_parameters'][identifier['name']] = description
+                if identifier_type != IdentifierType.INTEGER and identifier_type != IdentifierType.OBJECT:
+                    description['attacks'].append(attack_technique.enum_gray_box)
+                    description['parameter_level_properties'] = identifier_properties
+                    description['additional_check_rule'].append("Identifier's type is not integer or object")
                     self.attacks_count_dict[attack_technique.enum_gray_box] += 1
-                    continue
 
-                # ToDo: Add for other identifiers
-                description['attacks'] = ["Enumeration with a priori knowledge"]
-                description['additional_check_rule'] = "Authorization is required"
-
-                # ToDo: Add file extension check in path
-                if identifier['parameter_level_properties']['type'] == 'string':
-                    description['attacks'].append("File extension decoration")
-                    description['attacks'].append("Wildcard replacement")
-                    description['additional_check_rule'] += ' '.join([description['additional_check_rule'],
-                                                                      "AND identifier's type is string"])
-                    self.attacks_count_dict[attack_technique.replace_wildcard] += 1
+                if identifier_properties[ParameterProperties.IS_FILENAME] and \
+                        (identifier_type == IdentifierType.STRING or
+                         identifier_type == IdentifierType.UUID or
+                         identifier_type == IdentifierType.LIST):
+                    description['attacks'].append(attack_technique.manipulate_file_extension)
+                    description['additional_check_rule'].append("Parameter identifies a file and identifier's type is "
+                                                                "string, uuid or list")
                     self.attacks_count_dict[attack_technique.manipulate_file_extension] += 1
+
+                if identifier_type == IdentifierType.STRING:
+                    description['attacks'].append(attack_technique.replace_wildcard)
+                    description['additional_check_rule'].append("Identifier's type is string")
+                    self.attacks_count_dict[attack_technique.replace_wildcard] += 1
+
                 attack['targeted_parameters'][identifier['name']] = description
-                self.attacks_count_dict[attack_technique.enum_gray_box] += 1
+
             unexpected_responses = deepcopy(self.path_schema[operation]['responses'])
             if unexpected_responses.get('400') is not None:
                 attack['expected_response'] = unexpected_responses.pop('400')
@@ -290,13 +286,13 @@ class EndpointAttackAnalyzer:
                 continue
             sorted_parameters_list = sorted(merged_parameters_list, key=lambda x: x['name'])
             for i, parameter in enumerate(sorted_parameters_list[:-1]):
-                # ToDo: add other checks for parameter equivalence
                 if parameter['name'] != sorted_parameters_list[i + 1]['name']:
                     continue
                 attack = deepcopy(self.attack_structure_example)
-                attack['name'] = 'Parameter pollution'
+                attack['name'] = attack_technique.parameter_pollution
                 attack['target_operation'] = operation
                 attack['check_rule'] = "Operation uses authorization AND Operation requires parameters AND operation " \
+                                       "uses more than one identifier AND " \
                                        "requires two parameters with same names in different places "
                 attack['description'] = "Information in one request is processed and sent into different processing " \
                                         "units of server. Tampering with one of parameter's value is a way to check " \
