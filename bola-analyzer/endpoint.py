@@ -1,5 +1,7 @@
 from copy import deepcopy
 from typing import Dict, List, Any, Union
+import attack_technique
+
 
 operations = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']
 
@@ -16,31 +18,21 @@ class EndpointAttackAnalyzer:
             'examples': [],
         }
         self.attack_proposed = 0
-        # ToDo: add counters for every type of attacks proposed
-        # authorization token manipulation
-        self.attack_atm = 0
-        # verb tampering non-specified
-        self.attack_vtns = 0
-        # verb tampering parameters exchange
-        self.attack_vtpe = 0
-        # parameter pollution
-        self.attack_pp = 0
-        # enumeration
-        self.attack_simple_enum = 0
-        # enumeration with ap priori knowledge
-        self.attack_complex_enum = 0
-        # enumeration array append
-        self.attack_array_enum = 0
-        # enumeration wild card
-        self.attack_wildcard = 0
-        # enumeration file extension
-        self.attack_file_ext = 0
+        self.attacks_count_dict = {attack_technique.enum_black_box: 0,
+                                   attack_technique.enum_gray_box: 0,
+                                   attack_technique.manipulate_file_extension: 0,
+                                   attack_technique.replace_wildcard: 0,
+                                   attack_technique.append_list: 0,
+                                   attack_technique.tamper_verb_non_spec: 0,
+                                   attack_technique.tamper_verb_exchange: 0,
+                                   attack_technique.manipulate_auth_data: 0,
+                                   attack_technique.parameter_pollution: 0}
 
     def parse_endpoint(self, **disable_attack_flags):
         # Call attack checker methods
         content: dict
         if disable_attack_flags.get('authorization_token_manipulation_off') is not True:
-            self.__authorization_token_manipulation()
+            self.__authorization_data_manipulation()
         if disable_attack_flags.get('verb_tampering_non_specified_off') is not True:
             self.__verb_tampering_non_specified()
         # ToDo: Rename verb tampering parameters exchange parameters and body
@@ -51,7 +43,7 @@ class EndpointAttackAnalyzer:
         if disable_attack_flags.get('parameter_pollution_off') is not True:
             self.__parameter_pollution()
 
-    def __authorization_token_manipulation(self):
+    def __authorization_data_manipulation(self):
         """path - endpoint's path (OpenAPI PATH object)
         path_schema - endpoint's content"""
         self.path_schema: dict
@@ -88,7 +80,7 @@ class EndpointAttackAnalyzer:
                 attack['expected_response'][operation] = expected_responses
                 attack['unexpected_response_codes'] = list(unexpected_responses.keys())
             self.attack_proposed += 1
-            self.attack_atm += 1
+            self.attacks_count_dict[attack_technique.manipulate_auth_data] += 1
             self.attack_spec.append(attack)
 
     def __verb_tampering_non_specified(self):
@@ -119,7 +111,7 @@ class EndpointAttackAnalyzer:
                     unexpected_responses = deepcopy(self.path_schema[operation]['responses'])
                     attack['unexpected_response_codes'] = list(unexpected_responses.keys())
                     self.attack_proposed += 1
-                    self.attack_vtns += 1
+                    self.attacks_count_dict[attack_technique.tamper_verb_non_spec] += 1
                     self.attack_spec.append(attack)
 
     def __verb_tampering_parameters_exchange(self):
@@ -146,7 +138,6 @@ class EndpointAttackAnalyzer:
                 sink_operation_parameters = sink_operation_schema.get('parameters')
                 source_operation_parameters = source_operation_schema.get('parameters')
 
-                # ToDo: implement parameters list equality (only non-emptiness is checked) more carefully
                 parameters_are_same = True
                 bodies_are_same = True
                 if (sink_operation_parameters is None) or (source_operation_parameters is None):
@@ -188,7 +179,7 @@ class EndpointAttackAnalyzer:
                 attack['expected_response'] = {'400': "Bad Request"}
             attack['unexpected_response_codes'] = list(unexpected_responses.keys())
             self.attack_proposed += 1
-            self.attack_vtpe += 1
+            self.attacks_count_dict[attack_technique.tamper_verb_exchange] += 1
             self.attack_spec.append(attack)
 
     def __enumeration(self):
@@ -224,7 +215,7 @@ class EndpointAttackAnalyzer:
                     description['parameter_level_properties'] = identifier['parameter_level_properties']
                     description['additional_check_rule'] = "Identifier's type is integer AND Authorization is required"
                     attack['targeted_parameters'][identifier['name']] = description
-                    self.attack_simple_enum += 1
+                    self.attacks_count_dict[attack_technique.enum_black_box] += 1
                     print('Simple enumeration')
                     continue
 
@@ -233,15 +224,15 @@ class EndpointAttackAnalyzer:
                     description['parameter_level_properties'] = identifier['parameter_level_properties']
                     description[
                         'additional_check_rule'] = "Authorization is required AND Parameter's type is array"
-                    self.attack_array_enum += 1
+                    self.attacks_count_dict[attack_technique.append_list] += 1
                     print('Identifier appending to the end')
                     if identifier['schema']['items']['type'] == 'integer':
-                        self.attack_simple_enum += 1
+                        self.attacks_count_dict[attack_technique.enum_black_box] += 1
                         description['attacks'].append("Enumeration without a priori knowledge")
                         description[
                             'additional_check_rule'] = "Parameter's type is array AND parameter's item's type is " \
                                                        "integer AND Authorization is required "
-                        self.attack_simple_enum += 1
+                        self.attacks_count_dict[attack_technique.enum_black_box] += 1
                         print('Simple enumeration')
                     attack['targeted_parameters'][identifier['name']] = description
                     continue
@@ -256,7 +247,7 @@ class EndpointAttackAnalyzer:
                     description[
                         'additional_check_rule'] = "Identifier's type is UUID"
                     attack['targeted_parameters'][identifier['name']] = description
-                    self.attack_complex_enum += 1
+                    self.attacks_count_dict[attack_technique.enum_gray_box] += 1
                     continue
 
                 # ToDo: Add for other identifiers
@@ -269,10 +260,10 @@ class EndpointAttackAnalyzer:
                     description['attacks'].append("Wildcard replacement")
                     description['additional_check_rule'] += ' '.join([description['additional_check_rule'],
                                                                       "AND identifier's type is string"])
-                    self.attack_wildcard += 1
-                    self.attack_file_ext += 1
+                    self.attacks_count_dict[attack_technique.replace_wildcard] += 1
+                    self.attacks_count_dict[attack_technique.manipulate_file_extension] += 1
                 attack['targeted_parameters'][identifier['name']] = description
-                self.attack_complex_enum += 1
+                self.attacks_count_dict[attack_technique.enum_gray_box] += 1
             unexpected_responses = deepcopy(self.path_schema[operation]['responses'])
             if unexpected_responses.get('400') is not None:
                 attack['expected_response'] = unexpected_responses.pop('400')
@@ -324,5 +315,5 @@ class EndpointAttackAnalyzer:
                     attack['expected_response'] = {'422': "Unprocessable Entity"}
                 attack['unexpected_response_codes'] = list(unexpected_responses.keys())
                 self.attack_proposed += 1
-                self.attack_pp += 1
+                self.attacks_count_dict[attack_technique.parameter_pollution] += 1
                 self.attack_spec.append(attack)

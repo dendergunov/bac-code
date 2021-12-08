@@ -1,0 +1,11 @@
+enum_black_box = "Enumeration without a priori knowledge"
+enum_black_box_description = """"""
+
+enum_gray_box = "Enumeration with a priori knowledge"
+manipulate_file_extension = "Add/Change file extension"
+replace_wildcard = "Wildcard replacement"
+append_list = "Array appending"
+tamper_verb_non_spec = "Verb tampering non-specified"
+tamper_verb_exchange = "Verb tampering parameters exchange"
+manipulate_auth_data = "Authorization token manipulation"
+parameter_pollution = "Parameter pollution"
