@@ -139,7 +139,7 @@ class FunctionalTestCase(unittest.TestCase):
 
         print("Done in", end - start, "seconds")
         self.assertTrue(list(attack_analyzer_instance.attack_spec.values())[0]['attacks'][0]['name'] ==
-                        "Parameter pollution")
+                        attack_technique.parameter_pollution)
 
     def test_enumeration_array(self):
         start = time.time()
@@ -158,7 +158,10 @@ class FunctionalTestCase(unittest.TestCase):
         end = time.time()
 
         print("Done in", end - start, "seconds")
-        self.assertTrue(list(attack_analyzer_instance.attack_spec.values())[0]['attacks'][0]['name'] == 'Enumeration')
+        identifier_attacks = list(
+            list(attack_analyzer_instance.attack_spec.values())[0]
+            ['attacks'][0]['targeted_parameters'].values())[0]['attacks']
+        self.assertTrue("Non-owned object's identifier appending to the end of a list" in identifier_attacks)
 
     def test_enumeration_file(self):
         start = time.time()
@@ -177,7 +180,10 @@ class FunctionalTestCase(unittest.TestCase):
         end = time.time()
 
         print("Done in", end - start, "seconds")
-        self.assertTrue(list(attack_analyzer_instance.attack_spec.values())[0]['attacks'][0]['name'] == 'Enumeration')
+        identifier_attacks = list(
+            list(attack_analyzer_instance.attack_spec.values())[0]
+            ['attacks'][0]['targeted_parameters'].values())[0]['attacks']
+        self.assertTrue(attack_technique.manipulate_file_extension in identifier_attacks)
 
     def test_enumeration_wildcard(self):
         start = time.time()
@@ -196,7 +202,10 @@ class FunctionalTestCase(unittest.TestCase):
         end = time.time()
 
         print("Done in", end - start, "seconds")
-        self.assertTrue(list(attack_analyzer_instance.attack_spec.values())[0]['attacks'][0]['name'] == 'Enumeration')
+        identifier_attacks = list(
+            list(attack_analyzer_instance.attack_spec.values())[0]
+            ['attacks'][0]['targeted_parameters'].values())[0]['attacks']
+        self.assertTrue(attack_technique.replace_wildcard in identifier_attacks)
 
     def test_no_vulnerabilities(self):
         start = time.time()
