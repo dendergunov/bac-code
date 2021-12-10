@@ -95,6 +95,8 @@ class EndpointAttackAnalyzer:
             return
         for operation in operations:
             if self.path_schema.get(operation) is not None:
+                if not self.path_schema[operation]['method_level_properties'][MethodProperties.AUTHORIZATION_REQUIRED]:
+                    continue
                 parameters_required = \
                     self.path_schema[operation]['method_level_properties'][MethodProperties.PARAMETERS_REQUIRED]
                 has_body = self.path_schema[operation]['method_level_properties'][MethodProperties.HAS_BODY]
@@ -124,11 +126,13 @@ class EndpointAttackAnalyzer:
             return
         defined_operations = [operation for operation in operations if self.path_schema.get(operation) is not None]
         for sink_operation in defined_operations:
+            sink_operation_schema = self.path_schema.get(sink_operation)
+            if not sink_operation_schema['method_level_properties'][MethodProperties.AUTHORIZATION_REQUIRED]:
+                continue
             operations_to_take_their_parameters = []
             for source_operation in defined_operations:
                 if sink_operation == source_operation:
                     continue
-                sink_operation_schema = self.path_schema.get(sink_operation)
                 source_operation_schema = self.path_schema.get(source_operation)
                 if sink_operation_schema['method_level_properties'][
                     MethodProperties.OPERATION_PARAMETERS_DEFINED] is False and \
@@ -192,11 +196,14 @@ class EndpointAttackAnalyzer:
         endpoint_parameters = self.path_schema.get('parameters', [])
         defined_operations = [operation for operation in operations if self.path_schema.get(operation) is not None]
         for operation in defined_operations:
+            if not self.path_schema[operation]['method_level_properties'][MethodProperties.AUTHORIZATION_REQUIRED]:
+                continue
             if not self.path_schema[operation]['method_level_properties'][MethodProperties.PARAMETERS_REQUIRED]:
                 continue
             if self.path_schema[operation]['method_level_properties'][MethodProperties.IDENTIFIERS_USED] == 'zero':
                 continue
-            merged_identifiers_list = list(filter(lambda x: x['parameter_level_properties']['is_identifier'],
+            merged_identifiers_list = list(filter(lambda x: x['parameter_level_properties']
+                                                             [ParameterProperties.IS_IDENTIFIER],
                                                   endpoint_parameters + self.path_schema[operation].get('parameters',
                                                                                                         [])))
             # Single parameter enumeration
@@ -279,7 +286,9 @@ class EndpointAttackAnalyzer:
         endpoint_parameters = self.path_schema.get('parameters', [])
         defined_operations = [operation for operation in operations if self.path_schema.get(operation) is not None]
         for operation in defined_operations:
-            if not self.path_schema[operation]['method_level_properties']['parameters_required']:
+            if not self.path_schema[operation]['method_level_properties'][MethodProperties.PARAMETERS_REQUIRED]:
+                continue
+            if not self.path_schema[operation]['method_level_properties'][MethodProperties.AUTHORIZATION_REQUIRED]:
                 continue
             merged_parameters_list = endpoint_parameters + self.path_schema[operation].get('parameters', [])
             if len(merged_parameters_list) == 0:

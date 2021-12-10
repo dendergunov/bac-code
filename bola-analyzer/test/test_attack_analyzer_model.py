@@ -198,6 +198,23 @@ class FunctionalTestCase(unittest.TestCase):
         print("Done in", end - start, "seconds")
         self.assertTrue(list(attack_analyzer_instance.attack_spec.values())[0]['attacks'][0]['name'] == 'Enumeration')
 
+    def test_no_vulnerabilities(self):
+        start = time.time()
+        property_analyzer = annotator.OpenAPISpecAnnotator()
+        property_analyzer.parse_spec(os.path.join(currentdir,
+                                                  "no_vulnerability", "api_spec.yaml"))
+        property_analyzer.save_spec(os.path.join(currentdir, "no_vulnerability", "properties.yaml"))
+
+        attack_analyzer_instance = attack_analyzer.AttackAnalyzer()
+        attack_analyzer_instance.estimate_attacks(
+            os.path.join(currentdir, "no_vulnerability", "properties.yaml"))
+        attack_analyzer_instance.save_output(os.path.join(currentdir, "no_vulnerability", "tests.yaml"))
+        end = time.time()
+
+        print("Done in", end - start, "seconds")
+        self.assertTrue(
+            attack_analyzer_instance.attack_spec['attacks_proposed'] == 0)
+
 
 if __name__ == '__main__':
     unittest.main()
